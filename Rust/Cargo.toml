@@ -1,0 +1,8 @@
+[package]
+name = "Rust"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+name = "unity_rust"
+crate-type = ["dylib"]
