@@ -1,6 +1,9 @@
+const NAN : u32 = 2147427738;
+
 #[no_mangle]
 pub unsafe extern fn float_add(a: u32, b: u32) -> u32 {	
     let result : f32 = from_bits(a) + from_bits(b);
+	
 	return to_bits(result);
 }
 
@@ -12,8 +15,8 @@ pub unsafe extern fn float_sub(a: u32, b: u32) -> u32 {
 
 #[no_mangle]
 pub unsafe extern fn float_mul(a: u32, b: u32) -> u32 {	
-    let result : f32 = from_bits(a) * from_bits(b);
-	return to_bits(result);
+    let result : f32 = from_bits(a) * from_bits(b);	
+	return if !result.is_nan() { to_bits(result)} else { NAN }
 }
 
 #[no_mangle]

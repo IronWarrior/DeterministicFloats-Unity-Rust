@@ -10,6 +10,7 @@ public static class Mathd
     //private static extern uint float_sub(uint a, uint b);
 
     [DllImport("unity_rust")]
+    [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization | MethodImplOptions.PreserveSig)]
     private static extern uint float_mul(uint a, uint b);
 
     //[DllImport("unity_rust")]
