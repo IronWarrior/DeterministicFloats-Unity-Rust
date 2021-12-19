@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
@@ -36,25 +37,23 @@ public class DeterminismTest : MonoBehaviour
         }
     }
 
+    // Cannot load files in StreamingAssets directly on Android, so WebRequest is used.
     private IEnumerator Start()
     {
         UnityWebRequest inputsReq = UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, floatInputsFilename));
         yield return inputsReq.SendWebRequest();
-
-        MemoryStream inputsMS = new MemoryStream(inputsReq.downloadHandler.data);
-        StreamReader inputsReader = new StreamReader(inputsMS);
+        
+        StreamReader inputsReader = new StreamReader(new MemoryStream(inputsReq.downloadHandler.data));
 
         UnityWebRequest floatReq = UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, floatResultsFilename));
         yield return floatReq.SendWebRequest();
 
-        MemoryStream floatMS = new MemoryStream(floatReq.downloadHandler.data);
-        StreamReader floatResultsReader = new StreamReader(floatMS);
+        StreamReader floatResultsReader = new StreamReader(new MemoryStream(floatReq.downloadHandler.data));
 
         UnityWebRequest dfloatReq = UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, dfloatResultsFilename));
         yield return dfloatReq.SendWebRequest();
 
-        MemoryStream dfloatMS = new MemoryStream(dfloatReq.downloadHandler.data);
-        StreamReader dFloatResultsReader = new StreamReader(dfloatMS);
+        StreamReader dFloatResultsReader = new StreamReader(new MemoryStream(dfloatReq.downloadHandler.data));
 
         Execute(false, inputsReader, floatResultsReader, dFloatResultsReader);
     }
@@ -114,9 +113,9 @@ public class DeterminismTest : MonoBehaviour
                     dFloatResultsStream.WriteLine(dfloatResult.Bits);
 
                     Debug.Assert(floatResult == dfloatResult.Bits, 
-                        $"Result diff: float {BitsToFloat(floatResult)} : {Convert.ToString(floatResult, 2)} : {floatResult} " +
-                        $"!= dfloat {dfloat.AsNonDetermFloat(dfloatResult)} : {Convert.ToString(dfloatResult.Bits, 2)} : {dfloatResult.Bits}\n" +
-                        $"Inputs: {floatInputs[i]} : {Convert.ToString(floatInputs[i], 2)} * {floatInputs[j]} : { Convert.ToString(floatInputs[j], 2)}");
+                        $"Result diff: float {FloatBitsToVerboseString(floatResult) } " +
+                        $"!= dfloat {FloatBitsToVerboseString(dfloatResult.Bits) }\n" +
+                        $"Inputs: {FloatBitsToVerboseString(floatInputs[i]) } * {FloatBitsToVerboseString(floatInputs[j])}");
                 }
                 else
                 {
@@ -127,18 +126,16 @@ public class DeterminismTest : MonoBehaviour
                     {
                         floatErrors++;
 
-                        Debug.LogError($"Float result diff: res {BitsToFloat(floatResult)}:{floatResult} != truth {BitsToFloat(floatTruth)}:{floatTruth}\n" +
-                            $"Inputs: {floatInputs[i]} * {floatInputs[j]}");
+                        Debug.LogError($"Float result diff: res {FloatBitsToVerboseString(floatResult) } != truth {FloatBitsToVerboseString(floatTruth) }\n" +
+                            $"Inputs: {FloatBitsToVerboseString(floatInputs[i]) } * {FloatBitsToVerboseString(floatInputs[j]) }");
                     }
 
                     if (dfloatTruth != dfloatResult.Bits)
                     {
                         dfloatErrors++;
 
-                        dfloat truth = new dfloat(floatTruth);
-
-                        Debug.LogError($"DFloat result diff: res {dfloat.AsNonDetermFloat(dfloatResult)}:{dfloatResult.Bits} != truth {dfloat.AsNonDetermFloat(truth)}:{truth.Bits}\n" +
-                             $"Inputs: {floatInputs[i]} * {floatInputs[j]}");
+                        Debug.LogError($"DFloat result diff: res {FloatBitsToVerboseString(dfloatResult.Bits)} != truth {FloatBitsToVerboseString(dfloatTruth)}\n" +
+                            $"Inputs: {FloatBitsToVerboseString(floatInputs[i]) } * {FloatBitsToVerboseString(floatInputs[j]) }");
                     }
                 }
 
@@ -157,26 +154,23 @@ public class DeterminismTest : MonoBehaviour
             dFloatResultsReader.Dispose();
         }
 
-        Debug.Log($"Tested {tests} muls.");
+        StringBuilder log = new StringBuilder();
+
+        log.AppendLine($"Tested {tests} muls.");
 
         if (!write)
         {
-            Debug.Log($"{floatErrors} errors with floats, {dfloatErrors} with dfloats");
+            log.AppendLine($"{floatErrors} errors with floats, {dfloatErrors} with dfloats");
         }
 
-        //string log = $"Tested {tests} muls.\n" +
-        //    $"Ground truths f: {checksumFloat} df: {checksumDFloat}\n" +
-        //    $"floatsum: {floatsum}\n" +
-        //    $"dfloatsum: {dfloatsum}";
-
-        //Debug.Log(log);
+        Debug.Log(log.ToString());
 
         output.text = write ? "Not done" : "Done";
     }
 
     private string FloatBitsToVerboseString(uint bits)
     {
-        return $"{ BitsToFloat(bits)} : { Convert.ToString(bits, 2)} : {bits}";
+        return $"{ BitsToFloat(bits)} : { Convert.ToString(bits, 2).PadLeft(32, '0')} : {bits}";
     }
 
     private unsafe float BitsToFloat(uint bits)
