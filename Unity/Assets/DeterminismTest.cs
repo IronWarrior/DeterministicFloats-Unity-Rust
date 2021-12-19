@@ -165,7 +165,7 @@ public class DeterminismTest : MonoBehaviour
 
         Debug.Log(log.ToString());
 
-        output.text = write ? "Not done" : "Done";
+        output.text = write ? "Not done" : log.ToString();
     }
 
     private string FloatBitsToVerboseString(uint bits)
