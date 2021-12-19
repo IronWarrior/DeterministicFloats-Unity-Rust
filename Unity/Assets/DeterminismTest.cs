@@ -28,7 +28,9 @@ public class DeterminismTest : MonoBehaviour
         {
             Generate();
 
-            Execute(true);
+            StreamReader inputsReader = new StreamReader(Path.Combine(Application.streamingAssetsPath, floatInputsFilename));
+
+            Execute(true, inputsReader);
 
             generate = false;
         }
@@ -36,33 +38,25 @@ public class DeterminismTest : MonoBehaviour
 
     private IEnumerator Start()
     {
-        UnityWebRequest floatReq = UnityWebRequest.Get(Path.Combine(StreamingAssetPathForWWW(), floatResultsFilename));
+        UnityWebRequest inputsReq = UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, floatInputsFilename));
+        yield return inputsReq.SendWebRequest();
+
+        MemoryStream inputsMS = new MemoryStream(inputsReq.downloadHandler.data);
+        StreamReader inputsReader = new StreamReader(inputsMS);
+
+        UnityWebRequest floatReq = UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, floatResultsFilename));
         yield return floatReq.SendWebRequest();
 
         MemoryStream floatMS = new MemoryStream(floatReq.downloadHandler.data);
         StreamReader floatResultsReader = new StreamReader(floatMS);
 
-        UnityWebRequest dfloatReq = UnityWebRequest.Get(Path.Combine(StreamingAssetPathForWWW(), dfloatResultsFilename));
+        UnityWebRequest dfloatReq = UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, dfloatResultsFilename));
         yield return dfloatReq.SendWebRequest();
 
         MemoryStream dfloatMS = new MemoryStream(dfloatReq.downloadHandler.data);
         StreamReader dFloatResultsReader = new StreamReader(dfloatMS);
 
-        Execute(false, floatResultsReader, dFloatResultsReader);
-    }
-
-    public static string StreamingAssetPathForWWW()
-    {
-#if UNITY_EDITOR || UNITY_STANDALONE_OSX || UNITY_STANDALONE_WIN
-        return "file://" + Application.dataPath + "/StreamingAssets/";
-#endif
-#if UNITY_ANDROID
-        return "jar:file://" + Application.dataPath + "!/assets/";
-#endif
-#if UNITY_IOS
-        return "file://" + Application.dataPath + "/Raw/";
-#endif
-        throw new System.NotImplementedException("Check the ifdefs above.");
+        Execute(false, inputsReader, floatResultsReader, dFloatResultsReader);
     }
 
     private void Generate()
@@ -79,15 +73,16 @@ public class DeterminismTest : MonoBehaviour
         }
     }
 
-    private void Execute(bool write, StreamReader floatResultsReader = null, StreamReader dFloatResultsReader = null)
+    private void Execute(bool write, StreamReader floatInputsStream, StreamReader floatResultsReader = null, StreamReader dFloatResultsReader = null)
     {
-        using var floatInputsStream = new StreamReader(Path.Combine(Application.streamingAssetsPath, floatInputsFilename));
         List<uint> floatInputs = new List<uint>();
 
         while (!floatInputsStream.EndOfStream)
         {
             floatInputs.Add(Convert.ToUInt32(floatInputsStream.ReadLine()));
         }
+
+        floatInputsStream.Close();
 
         StreamWriter floatResultsStream = null, dFloatResultsStream = null;
 
