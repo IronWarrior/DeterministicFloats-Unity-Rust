@@ -159,7 +159,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0.000030517578}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: -4, y: 0}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &53028709
 MonoBehaviour:
@@ -183,7 +183,7 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 24
+    m_FontSize: 16
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 0
@@ -538,7 +538,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   generate: 0
   output: {fileID: 53028709}
-  count: 5
+  count: 100
 --- !u!1 &1397591581
 GameObject:
   m_ObjectHideFlags: 0
@@ -951,8 +951,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 566803837}
   m_HandleRect: {fileID: 566803836}
   m_Direction: 2
-  m_Value: 1
-  m_Size: 0.6463394
+  m_Value: 0
+  m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:

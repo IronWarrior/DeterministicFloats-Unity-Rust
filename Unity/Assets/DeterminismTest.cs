@@ -13,19 +13,21 @@ public class DeterminismTest : MonoBehaviour
     bool generate;
 
     [SerializeField]
-    Text output;
+    int count = 100;
 
     [SerializeField]
-    int count = 100;
+    Text output;
 
     private const string floatInputsFilename = "floatInputs.txt";
 
     private const string floatResultsFilename = "floatResults.txt";
     private const string dfloatResultsFilename = "dfloatResults.txt";
 
+    private const string errorTextColor = "#FF7575";
+
     /// <summary>
     /// Randomly generated floats stored as uints separated by newlines. Contains 
-    /// all possible kinds of floats, including NaNs and subnormals.
+    /// all possible kinds of floats, including NaNs.
     /// </summary>
     private StreamReader floatBitsInputReader;
 
@@ -34,11 +36,13 @@ public class DeterminismTest : MonoBehaviour
 
     private StringBuilder log;
 
+    private long tests, floatErrors, dfloatErrors;
+
     private void Log(string message)
     {
         if (Application.isPlaying)
         {
-            log.AppendLine(message);
+            log.AppendLine(message + "\n");
         }
 
         Debug.Log(message);
@@ -48,7 +52,7 @@ public class DeterminismTest : MonoBehaviour
     {
         if (Application.isPlaying)
         {
-            log.AppendLine(message);
+            log.AppendLine($"<color={errorTextColor}>{message}</color>" + "\n");
         }
 
         Debug.LogError(message);
@@ -120,6 +124,10 @@ public class DeterminismTest : MonoBehaviour
 
     private void Execute(bool write)
     {
+        tests = 0;
+        floatErrors = 0;
+        dfloatErrors = 0;
+
         floatResultsWriter = null;
         dfloatResultsWriter = null;
 
@@ -133,15 +141,8 @@ public class DeterminismTest : MonoBehaviour
         uint denormalized = 8388607;
         uint two = 1073741824;
 
-        MulTest(denormalized, denormalized, write, out bool floatPass, out bool dfloatPass);
-
-        Assert(floatPass, "Failed float denormalize.");
-        Assert(dfloatPass, "Failed dfloat denormalize.");
-
-        MulTest(denormalized, two, write, out floatPass, out dfloatPass);
-
-        Assert(floatPass, "Failed float denormalize.");
-        Assert(dfloatPass, "Failed dfloat denormalize.");
+        MulTest(denormalized, denormalized, write, "Denorm * norm");
+        MulTest(denormalized, two, write, "Denorm * norm");
 
         List<uint> floatInputs = new List<uint>();
 
@@ -152,55 +153,11 @@ public class DeterminismTest : MonoBehaviour
 
         floatBitsInputReader.Close();
 
-        ulong tests = 0;
-        ulong floatErrors = 0, dfloatErrors = 0;
-
         for (int i = 0; i < floatInputs.Count; i++)
         {
-            float aFloat = BitsToFloat(floatInputs[i]);
-            dfloat aDFloat = new dfloat(floatInputs[i]);
-
             for (int j = i; j < floatInputs.Count; j++)
             {
-                float bFloat = BitsToFloat(floatInputs[j]);
-                dfloat bDFloat = new dfloat(floatInputs[j]);
-
-                uint floatResult = FloatToBits(aFloat * bFloat);
-                dfloat dfloatResult = Mathd.Mul(aDFloat, bDFloat);
-
-                if (write)
-                {
-                    floatResultsWriter.WriteLine(floatResult);
-                    dfloatResultsWriter.WriteLine(dfloatResult.Bits);
-
-                    Debug.Assert(floatResult == dfloatResult.Bits, 
-                        $"Result diff: float {FloatBitsToVerboseString(floatResult) } " +
-                        $"!= dfloat {FloatBitsToVerboseString(dfloatResult.Bits) }\n" +
-                        $"Inputs: {FloatBitsToVerboseString(floatInputs[i]) } * {FloatBitsToVerboseString(floatInputs[j])}");
-                }
-                else
-                {
-                    uint floatTruth = Convert.ToUInt32(floatResultsReader.ReadLine());
-                    uint dfloatTruth = Convert.ToUInt32(dfloatResultsReader.ReadLine());
-
-                    if (floatTruth != floatResult)
-                    {
-                        floatErrors++;
-
-                        Debug.LogError($"Float result diff: res {FloatBitsToVerboseString(floatResult) } != truth {FloatBitsToVerboseString(floatTruth) }\n" +
-                            $"Inputs: {FloatBitsToVerboseString(floatInputs[i]) } * {FloatBitsToVerboseString(floatInputs[j]) }");
-                    }
-
-                    if (dfloatTruth != dfloatResult.Bits)
-                    {
-                        dfloatErrors++;
-
-                        Debug.LogError($"DFloat result diff: res {FloatBitsToVerboseString(dfloatResult.Bits)} != truth {FloatBitsToVerboseString(dfloatTruth)}\n" +
-                            $"Inputs: {FloatBitsToVerboseString(floatInputs[i]) } * {FloatBitsToVerboseString(floatInputs[j]) }");
-                    }
-                }
-
-                tests++;
+                MulTest(floatInputs[i], floatInputs[j], write, "Any");
             }
         }
 
@@ -215,22 +172,31 @@ public class DeterminismTest : MonoBehaviour
             dfloatResultsReader.Dispose();
         }
 
-        Log($"Tested {tests} muls.");
+        Log($"Tested {tests} operations.");
 
         if (!write)
         {
-            Log($"{floatErrors} errors with floats, {dfloatErrors} with dfloats");
+            string floatMessage = $"{floatErrors} errors with C# float operations.";
+
+            if (floatErrors > 0)
+                LogError(floatMessage);
+            else
+                Log(floatMessage);
+
+            string dfloatMessage = $"{dfloatErrors} errors with native (Rust) float operations.";
+
+            if (dfloatErrors > 0)
+                LogError(dfloatMessage);
+            else
+                Log(dfloatMessage);
         }
 
         if (Application.isPlaying)
             output.text = log.ToString();
     }
 
-    private void MulTest(uint a, uint b, bool write, out bool floatPass, out bool dfloatPass)
+    private void MulTest(uint a, uint b, bool write, string messagePrefix = "")
     {
-        floatPass = write;
-        dfloatPass = write;
-
         float resultF = BitsToFloat(a) * BitsToFloat(b);
         dfloat resultDF = Mathd.Mul(new dfloat(a), new dfloat(b));
 
@@ -244,14 +210,31 @@ public class DeterminismTest : MonoBehaviour
             uint floatTruth = Convert.ToUInt32(floatResultsReader.ReadLine());
             uint dfloatTruth = Convert.ToUInt32(dfloatResultsReader.ReadLine());
 
-            floatPass = FloatToBits(resultF) == floatTruth;
-            dfloatPass = resultDF.Bits == dfloatTruth;
+            if (FloatToBits(resultF) != floatTruth)
+            {
+                LogError($"{messagePrefix} for float: {GetResultString(a, b, FloatToBits(resultF), floatTruth)}");
+                floatErrors++;
+            }
+
+            if (resultDF.Bits != dfloatTruth)
+            {
+                LogError($"{messagePrefix} for dfloat: {GetResultString(a, b, resultDF.Bits, dfloatTruth)}");
+                dfloatErrors++;
+            }
         }
+
+        tests++;
+    }
+
+    private string GetResultString(uint a, uint b, uint result, uint truth)
+    {
+        return $"result {FloatBitsToVerboseString(result) } != truth {FloatBitsToVerboseString(truth) }\n" +
+               $"Inputs: {FloatBitsToVerboseString(a) } * {FloatBitsToVerboseString(b) }";
     }
 
     private string FloatBitsToVerboseString(uint bits)
     {
-        return $"{ BitsToFloat(bits)} : { Convert.ToString(bits, 2).PadLeft(32, '0')} : {bits}";
+        return $"{ BitsToFloat(bits)}f : { Convert.ToString(bits, 2).PadLeft(32, '0')} : {bits}";
     }
 
     private unsafe float BitsToFloat(uint bits)
