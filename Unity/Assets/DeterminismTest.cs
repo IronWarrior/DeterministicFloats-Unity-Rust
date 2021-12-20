@@ -139,14 +139,12 @@ public class DeterminismTest : MonoBehaviour
         uint denormalized = 8388607;
         uint two = 1073741824;
 
-        MulTest(denormalized, denormalized, write, out bool floatPass, out bool dfloatPass, floatResultsWriter, dfloatResultsWriter,
-            floatResultsReader, dfloatResultsReader);
+        MulTest(denormalized, denormalized, write, out bool floatPass, out bool dfloatPass);
 
         Assert(floatPass, "Failed float denormalize.");
         Assert(dfloatPass, "Failed dfloat denormalize.");
 
-        MulTest(denormalized, two, write, out floatPass, out dfloatPass, floatResultsWriter, dfloatResultsWriter,
-    floatResultsReader, dfloatResultsReader);
+        MulTest(denormalized, two, write, out floatPass, out dfloatPass);
 
         Assert(floatPass, "Failed float denormalize.");
         Assert(dfloatPass, "Failed dfloat denormalize.");
@@ -231,9 +229,7 @@ public class DeterminismTest : MonoBehaviour
         }
     }
 
-    private void MulTest(uint a, uint b, bool write, out bool floatPass, out bool dfloatPass,
-        StreamWriter floatResultsStream = null, StreamWriter dFloatResultsStream = null, 
-        StreamReader floatResultsReader = null, StreamReader dFloatResultsReader = null)
+    private void MulTest(uint a, uint b, bool write, out bool floatPass, out bool dfloatPass)
     {
         floatPass = write;
         dfloatPass = write;
@@ -243,13 +239,13 @@ public class DeterminismTest : MonoBehaviour
 
         if (write)
         {
-            floatResultsStream.WriteLine(FloatToBits(resultF));
-            dFloatResultsStream.WriteLine(resultDF.Bits);
+            floatResultsWriter.WriteLine(FloatToBits(resultF));
+            dfloatResultsWriter.WriteLine(resultDF.Bits);
         }
         else
         {
             uint floatTruth = Convert.ToUInt32(floatResultsReader.ReadLine());
-            uint dfloatTruth = Convert.ToUInt32(dFloatResultsReader.ReadLine());
+            uint dfloatTruth = Convert.ToUInt32(dfloatResultsReader.ReadLine());
 
             floatPass = FloatToBits(resultF) == floatTruth;
             dfloatPass = resultDF.Bits == dfloatTruth;
