@@ -32,6 +32,43 @@ public class DeterminismTest : MonoBehaviour
     private StreamWriter floatResultsWriter, dfloatResultsWriter;
     private StreamReader floatResultsReader, dfloatResultsReader;
 
+    private StringBuilder log;
+
+    private void Log(string message)
+    {
+        if (Application.isPlaying)
+        {
+            log.AppendLine(message);
+
+            output.text = log.ToString();
+        }
+
+        Debug.Log(message);
+    }
+
+    private void LogError(string message)
+    {
+        if (Application.isPlaying)
+        {
+            log.AppendLine(message);
+
+            output.text = log.ToString();
+        }
+
+        Debug.LogError(message);
+    }
+
+    private void Assert(bool value, string message = null)
+    {
+        if (value)
+            return;
+
+        if (message == null)
+            LogError("Assert failed.");
+        else
+            LogError(message);
+    }
+
     private void OnValidate()
     {
         if (generate)
@@ -49,6 +86,8 @@ public class DeterminismTest : MonoBehaviour
     // Cannot load files in StreamingAssets directly on Android, so WebRequest is used.
     private IEnumerator Start()
     {
+        log = new StringBuilder();
+
         yield return StartCoroutine(LoadReaders());
 
         Execute(false);
@@ -103,14 +142,14 @@ public class DeterminismTest : MonoBehaviour
         MulTest(denormalized, denormalized, write, out bool floatPass, out bool dfloatPass, floatResultsWriter, dfloatResultsWriter,
             floatResultsReader, dfloatResultsReader);
 
-        Debug.Assert(floatPass, "Failed float denormalize.");
-        Debug.Assert(dfloatPass, "Failed dfloat denormalize.");
+        Assert(floatPass, "Failed float denormalize.");
+        Assert(dfloatPass, "Failed dfloat denormalize.");
 
         MulTest(denormalized, two, write, out floatPass, out dfloatPass, floatResultsWriter, dfloatResultsWriter,
     floatResultsReader, dfloatResultsReader);
 
-        Debug.Assert(floatPass, "Failed float denormalize.");
-        Debug.Assert(dfloatPass, "Failed dfloat denormalize.");
+        Assert(floatPass, "Failed float denormalize.");
+        Assert(dfloatPass, "Failed dfloat denormalize.");
 
         List<uint> floatInputs = new List<uint>();
 
@@ -184,16 +223,12 @@ public class DeterminismTest : MonoBehaviour
             dfloatResultsReader.Dispose();
         }
 
-        log.AppendLine($"Tested {tests} muls.");
+        Log($"Tested {tests} muls.");
 
         if (!write)
         {
-            log.AppendLine($"{floatErrors} errors with floats, {dfloatErrors} with dfloats");
+            Log($"{floatErrors} errors with floats, {dfloatErrors} with dfloats");
         }
-
-        Debug.Log(log.ToString());
-
-        output.text = write ? "Not done" : log.ToString();
     }
 
     private void MulTest(uint a, uint b, bool write, out bool floatPass, out bool dfloatPass,
