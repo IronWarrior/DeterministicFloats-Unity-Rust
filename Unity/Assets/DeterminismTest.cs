@@ -16,12 +16,21 @@ public class DeterminismTest : MonoBehaviour
     Text output;
 
     [SerializeField]
-    int count = 10000;
+    int count = 100;
 
     private const string floatInputsFilename = "floatInputs.txt";
 
     private const string floatResultsFilename = "floatResults.txt";
     private const string dfloatResultsFilename = "dfloatResults.txt";
+
+    /// <summary>
+    /// Randomly generated floats stored as uints separated by newlines. Contains 
+    /// all possible kinds of floats, including NaNs and subnormals.
+    /// </summary>
+    private StreamReader floatBitsInputReader;
+
+    private StreamWriter floatResultsWriter, dfloatResultsWriter;
+    private StreamReader floatResultsReader, dfloatResultsReader;
 
     private void OnValidate()
     {
@@ -29,9 +38,9 @@ public class DeterminismTest : MonoBehaviour
         {
             Generate();
 
-            StreamReader inputsReader = new StreamReader(Path.Combine(Application.streamingAssetsPath, floatInputsFilename));
+            floatBitsInputReader = new StreamReader(Path.Combine(Application.streamingAssetsPath, floatInputsFilename));
 
-            Execute(true, inputsReader);
+            Execute(true);
 
             generate = false;
         }
@@ -40,22 +49,24 @@ public class DeterminismTest : MonoBehaviour
     // Cannot load files in StreamingAssets directly on Android, so WebRequest is used.
     private IEnumerator Start()
     {
+        yield return StartCoroutine(LoadReaders());
+
+        Execute(false);
+    }
+
+    private IEnumerator LoadReaders()
+    {
         UnityWebRequest inputsReq = UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, floatInputsFilename));
-        yield return inputsReq.SendWebRequest();
-        
-        StreamReader inputsReader = new StreamReader(new MemoryStream(inputsReq.downloadHandler.data));
-
         UnityWebRequest floatReq = UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, floatResultsFilename));
-        yield return floatReq.SendWebRequest();
-
-        StreamReader floatResultsReader = new StreamReader(new MemoryStream(floatReq.downloadHandler.data));
-
         UnityWebRequest dfloatReq = UnityWebRequest.Get(Path.Combine(Application.streamingAssetsPath, dfloatResultsFilename));
+
+        yield return inputsReq.SendWebRequest();
+        yield return floatReq.SendWebRequest();
         yield return dfloatReq.SendWebRequest();
 
-        StreamReader dFloatResultsReader = new StreamReader(new MemoryStream(dfloatReq.downloadHandler.data));
-
-        Execute(false, inputsReader, floatResultsReader, dFloatResultsReader);
+        floatBitsInputReader = new StreamReader(new MemoryStream(inputsReq.downloadHandler.data));
+        floatResultsReader = new StreamReader(new MemoryStream(floatReq.downloadHandler.data));
+        dfloatResultsReader = new StreamReader(new MemoryStream(dfloatReq.downloadHandler.data));
     }
 
     private void Generate()
@@ -72,14 +83,15 @@ public class DeterminismTest : MonoBehaviour
         }
     }
 
-    private void Execute(bool write, StreamReader floatInputsStream, StreamReader floatResultsReader = null, StreamReader dFloatResultsReader = null)
+    private void Execute(bool write)
     {
-        StreamWriter floatResultsStream = null, dFloatResultsStream = null;
+        floatResultsWriter = null;
+        dfloatResultsWriter = null;
 
         if (write)
         {
-            floatResultsStream = new StreamWriter(Path.Combine("Assets/StreamingAssets", floatResultsFilename));
-            dFloatResultsStream = new StreamWriter(Path.Combine("Assets/StreamingAssets", dfloatResultsFilename));
+            floatResultsWriter = new StreamWriter(Path.Combine("Assets/StreamingAssets", floatResultsFilename));
+            dfloatResultsWriter = new StreamWriter(Path.Combine("Assets/StreamingAssets", dfloatResultsFilename));
         }
 
         StringBuilder log = new StringBuilder();
@@ -88,26 +100,26 @@ public class DeterminismTest : MonoBehaviour
         uint denormalized = 8388607;
         uint two = 1073741824;
 
-        MulTest(denormalized, denormalized, write, out bool floatPass, out bool dfloatPass, floatResultsStream, dFloatResultsStream,
-            floatResultsReader, dFloatResultsReader);
+        MulTest(denormalized, denormalized, write, out bool floatPass, out bool dfloatPass, floatResultsWriter, dfloatResultsWriter,
+            floatResultsReader, dfloatResultsReader);
 
         Debug.Assert(floatPass, "Failed float denormalize.");
         Debug.Assert(dfloatPass, "Failed dfloat denormalize.");
 
-        MulTest(denormalized, two, write, out floatPass, out dfloatPass, floatResultsStream, dFloatResultsStream,
-    floatResultsReader, dFloatResultsReader);
+        MulTest(denormalized, two, write, out floatPass, out dfloatPass, floatResultsWriter, dfloatResultsWriter,
+    floatResultsReader, dfloatResultsReader);
 
         Debug.Assert(floatPass, "Failed float denormalize.");
         Debug.Assert(dfloatPass, "Failed dfloat denormalize.");
 
         List<uint> floatInputs = new List<uint>();
 
-        while (!floatInputsStream.EndOfStream)
+        while (!floatBitsInputReader.EndOfStream)
         {
-            floatInputs.Add(Convert.ToUInt32(floatInputsStream.ReadLine()));
+            floatInputs.Add(Convert.ToUInt32(floatBitsInputReader.ReadLine()));
         }
 
-        floatInputsStream.Close();
+        floatBitsInputReader.Close();
 
         ulong tests = 0;
         ulong floatErrors = 0, dfloatErrors = 0;
@@ -127,8 +139,8 @@ public class DeterminismTest : MonoBehaviour
 
                 if (write)
                 {
-                    floatResultsStream.WriteLine(floatResult);
-                    dFloatResultsStream.WriteLine(dfloatResult.Bits);
+                    floatResultsWriter.WriteLine(floatResult);
+                    dfloatResultsWriter.WriteLine(dfloatResult.Bits);
 
                     Debug.Assert(floatResult == dfloatResult.Bits, 
                         $"Result diff: float {FloatBitsToVerboseString(floatResult) } " +
@@ -138,7 +150,7 @@ public class DeterminismTest : MonoBehaviour
                 else
                 {
                     uint floatTruth = Convert.ToUInt32(floatResultsReader.ReadLine());
-                    uint dfloatTruth = Convert.ToUInt32(dFloatResultsReader.ReadLine());
+                    uint dfloatTruth = Convert.ToUInt32(dfloatResultsReader.ReadLine());
 
                     if (floatTruth != floatResult)
                     {
@@ -163,13 +175,13 @@ public class DeterminismTest : MonoBehaviour
 
         if (write)
         {
-            floatResultsStream.Close();
-            dFloatResultsStream.Close();
+            floatResultsWriter.Close();
+            dfloatResultsWriter.Close();
         }
         else
         {
             floatResultsReader.Dispose();
-            dFloatResultsReader.Dispose();
+            dfloatResultsReader.Dispose();
         }
 
         log.AppendLine($"Tested {tests} muls.");
