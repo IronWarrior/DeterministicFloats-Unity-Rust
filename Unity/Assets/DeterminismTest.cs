@@ -39,8 +39,6 @@ public class DeterminismTest : MonoBehaviour
         if (Application.isPlaying)
         {
             log.AppendLine(message);
-
-            output.text = log.ToString();
         }
 
         Debug.Log(message);
@@ -51,8 +49,6 @@ public class DeterminismTest : MonoBehaviour
         if (Application.isPlaying)
         {
             log.AppendLine(message);
-
-            output.text = log.ToString();
         }
 
         Debug.LogError(message);
@@ -132,8 +128,6 @@ public class DeterminismTest : MonoBehaviour
             floatResultsWriter = new StreamWriter(Path.Combine("Assets/StreamingAssets", floatResultsFilename));
             dfloatResultsWriter = new StreamWriter(Path.Combine("Assets/StreamingAssets", dfloatResultsFilename));
         }
-
-        StringBuilder log = new StringBuilder();
 
         // 1.17549421069e-38
         uint denormalized = 8388607;
@@ -227,6 +221,9 @@ public class DeterminismTest : MonoBehaviour
         {
             Log($"{floatErrors} errors with floats, {dfloatErrors} with dfloats");
         }
+
+        if (Application.isPlaying)
+            output.text = log.ToString();
     }
 
     private void MulTest(uint a, uint b, bool write, out bool floatPass, out bool dfloatPass)
