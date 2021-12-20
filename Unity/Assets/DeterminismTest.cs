@@ -74,6 +74,32 @@ public class DeterminismTest : MonoBehaviour
 
     private void Execute(bool write, StreamReader floatInputsStream, StreamReader floatResultsReader = null, StreamReader dFloatResultsReader = null)
     {
+        StreamWriter floatResultsStream = null, dFloatResultsStream = null;
+
+        if (write)
+        {
+            floatResultsStream = new StreamWriter(Path.Combine("Assets/StreamingAssets", floatResultsFilename));
+            dFloatResultsStream = new StreamWriter(Path.Combine("Assets/StreamingAssets", dfloatResultsFilename));
+        }
+
+        StringBuilder log = new StringBuilder();
+
+        // 1.17549421069e-38
+        uint denormalized = 8388607;
+        uint two = 1073741824;
+
+        MulTest(denormalized, denormalized, write, out bool floatPass, out bool dfloatPass, floatResultsStream, dFloatResultsStream,
+            floatResultsReader, dFloatResultsReader);
+
+        Debug.Assert(floatPass, "Failed float denormalize.");
+        Debug.Assert(dfloatPass, "Failed dfloat denormalize.");
+
+        MulTest(denormalized, two, write, out floatPass, out dfloatPass, floatResultsStream, dFloatResultsStream,
+    floatResultsReader, dFloatResultsReader);
+
+        Debug.Assert(floatPass, "Failed float denormalize.");
+        Debug.Assert(dfloatPass, "Failed dfloat denormalize.");
+
         List<uint> floatInputs = new List<uint>();
 
         while (!floatInputsStream.EndOfStream)
@@ -82,14 +108,6 @@ public class DeterminismTest : MonoBehaviour
         }
 
         floatInputsStream.Close();
-
-        StreamWriter floatResultsStream = null, dFloatResultsStream = null;
-
-        if (write)
-        {
-            floatResultsStream = new StreamWriter(Path.Combine("Assets/StreamingAssets", floatResultsFilename));
-            dFloatResultsStream = new StreamWriter(Path.Combine("Assets/StreamingAssets", dfloatResultsFilename));
-        }
 
         ulong tests = 0;
         ulong floatErrors = 0, dfloatErrors = 0;
@@ -154,8 +172,6 @@ public class DeterminismTest : MonoBehaviour
             dFloatResultsReader.Dispose();
         }
 
-        StringBuilder log = new StringBuilder();
-
         log.AppendLine($"Tested {tests} muls.");
 
         if (!write)
@@ -166,6 +182,31 @@ public class DeterminismTest : MonoBehaviour
         Debug.Log(log.ToString());
 
         output.text = write ? "Not done" : log.ToString();
+    }
+
+    private void MulTest(uint a, uint b, bool write, out bool floatPass, out bool dfloatPass,
+        StreamWriter floatResultsStream = null, StreamWriter dFloatResultsStream = null, 
+        StreamReader floatResultsReader = null, StreamReader dFloatResultsReader = null)
+    {
+        floatPass = write;
+        dfloatPass = write;
+
+        float resultF = BitsToFloat(a) * BitsToFloat(b);
+        dfloat resultDF = Mathd.Mul(new dfloat(a), new dfloat(b));
+
+        if (write)
+        {
+            floatResultsStream.WriteLine(FloatToBits(resultF));
+            dFloatResultsStream.WriteLine(resultDF.Bits);
+        }
+        else
+        {
+            uint floatTruth = Convert.ToUInt32(floatResultsReader.ReadLine());
+            uint dfloatTruth = Convert.ToUInt32(dFloatResultsReader.ReadLine());
+
+            floatPass = FloatToBits(resultF) == floatTruth;
+            dfloatPass = resultDF.Bits == dfloatTruth;
+        }
     }
 
     private string FloatBitsToVerboseString(uint bits)
