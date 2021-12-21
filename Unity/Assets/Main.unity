@@ -158,7 +158,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0.000030517578}
+  m_AnchoredPosition: {x: 2, y: 0.000030517578}
   m_SizeDelta: {x: -4, y: 0}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &53028709
@@ -206,7 +206,7 @@ MonoBehaviour:
     orci lacinia accumsan. Nullam in iaculis magna. Morbi at erat nunc. Sed interdum
     lectus euismod ligula ornare dignissim.
 
-    
+
 
     Nunc pharetra, turpis posuere
     aliquam volutpat, neque justo accumsan nisi, in euismod mauris tortor non nunc.
@@ -537,8 +537,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   generate: 0
+  count: 1000
+  treatAllNaNAlike: 1
   output: {fileID: 53028709}
-  count: 100
 --- !u!1 &1397591581
 GameObject:
   m_ObjectHideFlags: 0

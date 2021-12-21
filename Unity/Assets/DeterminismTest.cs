@@ -16,7 +16,12 @@ public class DeterminismTest : MonoBehaviour
     int count = 100;
 
     [SerializeField]
+    bool treatAllNaNAlike;
+
+    [SerializeField]
     Text output;
+
+    private enum Operator { Add = 0, Sub = 1, Mul = 2, Div = 3 }
 
     private const string floatInputsFilename = "floatInputs.txt";
 
@@ -88,7 +93,14 @@ public class DeterminismTest : MonoBehaviour
     {
         log = new StringBuilder();
 
+        var stopwatch = new System.Diagnostics.Stopwatch();
+        stopwatch.Start();
+
         yield return StartCoroutine(LoadReaders());
+
+        stopwatch.Stop();
+
+        Log($"Loading inputs/truths duration: {stopwatch.Elapsed.Milliseconds}ms");
 
         Execute(false);
     }
@@ -124,6 +136,8 @@ public class DeterminismTest : MonoBehaviour
 
     private void Execute(bool write)
     {
+        var stopwatch = new System.Diagnostics.Stopwatch();
+
         tests = 0;
         floatErrors = 0;
         dfloatErrors = 0;
@@ -137,12 +151,42 @@ public class DeterminismTest : MonoBehaviour
             dfloatResultsWriter = new StreamWriter(Path.Combine("Assets/StreamingAssets", dfloatResultsFilename));
         }
 
-        // 1.17549421069e-38
-        uint denormalized = 8388607;
-        uint two = 1073741824;
+        stopwatch.Start();
 
-        MulTest(denormalized, denormalized, write, "Denorm * norm");
-        MulTest(denormalized, two, write, "Denorm * norm");
+        // 1.17549421069e-38
+        uint largestDenormal = 0x007fffff;
+        // 1.14780357213e-41
+        uint middleDenormal = 0x00001fff;
+
+        uint pointfive = 0x3f000000;
+        uint posInfinity = FloatToBits(float.PositiveInfinity);
+        uint negInfinity = FloatToBits(float.NegativeInfinity);
+
+        OpTestAll(0, 0, write, "zero zero");
+        OpTestAll(0, pointfive, write, "zero pointfive");
+
+        OpTestAll(largestDenormal, largestDenormal, write, "denorm denorm");
+        OpTestAll(largestDenormal, middleDenormal, write, "denorm denorm");
+        OpTestAll(largestDenormal, pointfive, write, "denorm norm");
+        OpTestAll(pointfive, largestDenormal, write, "norm denorm");
+        OpTestAll(pointfive, middleDenormal, write, "norm denorm");
+        OpTestAll(0, largestDenormal, write, "zero denorm");
+        OpTestAll(largestDenormal, 0, write, "denorm zero");
+
+        OpTestAll(posInfinity, posInfinity, write, "posinf posinf");
+        OpTestAll(posInfinity, negInfinity, write, "posinf neginf");
+        OpTestAll(negInfinity, posInfinity, write, "neginf posinf");
+        OpTestAll(negInfinity, negInfinity, write, "neginf neginf");
+
+        OpTestAll(posInfinity, pointfive, write, "posinf norm");
+        OpTestAll(negInfinity, pointfive, write, "neginf norm");
+        OpTestAll(pointfive, posInfinity, write, "norm posInfinity");
+        OpTestAll(pointfive, negInfinity, write, "norm negInfinity");
+        OpTestAll(posInfinity, largestDenormal, write, "posinf denorm");
+        OpTestAll(negInfinity, largestDenormal, write, "neginf denorm");
+
+        OpTestAll(0, posInfinity, write, "zero posInfinity");
+        OpTestAll(0, negInfinity, write, "zero negInfinity");
 
         List<uint> floatInputs = new List<uint>();
 
@@ -157,7 +201,7 @@ public class DeterminismTest : MonoBehaviour
         {
             for (int j = i; j < floatInputs.Count; j++)
             {
-                MulTest(floatInputs[i], floatInputs[j], write, "Any");
+                OpTestAll(floatInputs[i], floatInputs[j], write, "Any");
             }
         }
 
@@ -191,39 +235,83 @@ public class DeterminismTest : MonoBehaviour
                 Log(dfloatMessage);
         }
 
+        stopwatch.Stop();
+
+        Log($"Arithmetic duration: {stopwatch.Elapsed.Milliseconds}ms");
+
         if (Application.isPlaying)
             output.text = log.ToString();
     }
 
-    private void MulTest(uint a, uint b, bool write, string messagePrefix = "")
+    private void OpTestAll(uint a, uint b, bool write, string messagePrefix = "")
     {
-        float resultF = BitsToFloat(a) * BitsToFloat(b);
-        dfloat resultDF = Mathd.Mul(new dfloat(a), new dfloat(b));
+        for (int i = 0; i < 4; i++)
+        {
+            Operator op = (Operator)i;
+
+            OpTest(a, b, op, write, messagePrefix);
+        }
+    }
+
+    private void OpTest(uint a, uint b, Operator op, bool write, string messagePrefix = "")
+    {
+        Operate(a, b, op, out float floatResult, out dfloat dfloatResult);
 
         if (write)
         {
-            floatResultsWriter.WriteLine(FloatToBits(resultF));
-            dfloatResultsWriter.WriteLine(resultDF.Bits);
+            floatResultsWriter.WriteLine(FloatToBits(floatResult));
+            dfloatResultsWriter.WriteLine(dfloatResult.Bits);
         }
         else
         {
             uint floatTruth = Convert.ToUInt32(floatResultsReader.ReadLine());
             uint dfloatTruth = Convert.ToUInt32(dfloatResultsReader.ReadLine());
 
-            if (FloatToBits(resultF) != floatTruth)
+            bool floatPass = FloatToBits(floatResult) == floatTruth || (treatAllNaNAlike && float.IsNaN(floatResult) && float.IsNaN(BitsToFloat(floatTruth)));
+            bool dfloatPass = dfloatResult.Bits == dfloatTruth || (treatAllNaNAlike && float.IsNaN(dfloat.AsNonDetermFloat(dfloatResult)) && float.IsNaN(BitsToFloat(dfloatTruth)));
+
+            if (!floatPass)
             {
-                LogError($"{messagePrefix} for float: {GetResultString(a, b, FloatToBits(resultF), floatTruth)}");
+                LogError($"{messagePrefix} {op} for float: {GetResultString(a, b, FloatToBits(floatResult), floatTruth)}");
                 floatErrors++;
             }
 
-            if (resultDF.Bits != dfloatTruth)
+            if (!dfloatPass)
             {
-                LogError($"{messagePrefix} for dfloat: {GetResultString(a, b, resultDF.Bits, dfloatTruth)}");
+                LogError($"{messagePrefix} {op} for dfloat: {GetResultString(a, b, dfloatResult.Bits, dfloatTruth)}");
                 dfloatErrors++;
             }
         }
 
         tests++;
+    }
+
+    private void Operate(uint a, uint b, Operator op, out float floatResult, out dfloat dfloatResult)
+    {
+        float floatA = BitsToFloat(a);
+        float floatB = BitsToFloat(b);
+
+        switch (op)
+        {
+            case Operator.Add:
+                floatResult = floatA + floatB;
+                dfloatResult = Mathd.Add(new dfloat(a), new dfloat(b));
+                break;
+            case Operator.Sub:
+                floatResult = floatA - floatB;
+                dfloatResult = Mathd.Sub(new dfloat(a), new dfloat(b));
+                break;
+            case Operator.Mul:
+                floatResult = floatA * floatB;
+                dfloatResult = Mathd.Mul(new dfloat(a), new dfloat(b));
+                break;
+            case Operator.Div:
+                floatResult = floatA / floatB;
+                dfloatResult = Mathd.Div(new dfloat(a), new dfloat(b));
+                break;
+            default:
+                throw new Exception("Unknown operator.");
+        }
     }
 
     private string GetResultString(uint a, uint b, uint result, uint truth)
