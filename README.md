@@ -2,7 +2,7 @@ This repo contains tests to check the determinism (consistency) of the basic flo
 
 ![Shows image of completed test of 2002084 operations with no errors.](https://i.imgur.com/CthVpgo.png)
 
-Tests normal numbers, denormal numbers, NaN and infinities, each against themselves and against each other. See all tests in the [DeterminismTest class](Unity/Assets/DeterminismTest.cs). It does **not** currently test the consistency of other operations, like hardware trigonometry (note that these can be implemented in software provided the basic operations are deterministic).
+Tests normal numbers, denormal numbers, NaN and infinities, each against themselves and against each other. See all tests in the [DeterminismTest class](Unity/Assets/DeterminismTest.cs). It does **not** currently test the consistency of other operations, like hardware trigonometry (note that these can be implemented in software provided the basic operations are deterministic; see [Rapier](https://rapier.rs/) for an example of cross platform float determinism using this approach).
 
 ### Disclaimer
 
@@ -25,6 +25,7 @@ _Where `Float errors` refers to arithmetic run in the managed C# environment, an
 * Unity's documentation does not make any statement on float determinism either way, so even with consistent results there is no guarantee future versions do not change this.
 * [ARMv7 apparently handles denormal numbers differently from ARMv8](https://stackoverflow.com/a/53993942), so should not be a surprise if it desyncs there. 
 * Not sure if the .NET runtime itself makes any guarantee of cross platform float determinism, or has any settings for that.
+* Calls to native binaries in C# [have a lot of overhead](https://docs.microsoft.com/en-us/cpp/dotnet/calling-native-functions-from-managed-code?redirectedfrom=MSDN&view=msvc-170#performance-considerations), so using it to solve determinism is not really practical where performance is critical, and is used here mainly for comparison.
 
 ## Running the tests
 
