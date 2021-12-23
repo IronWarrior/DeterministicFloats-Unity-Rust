@@ -540,6 +540,7 @@ MonoBehaviour:
   count: 1000
   treatAllNaNAlike: 1
   output: {fileID: 53028709}
+  logOutputLimit: 20
 --- !u!1 &1397591581
 GameObject:
   m_ObjectHideFlags: 0

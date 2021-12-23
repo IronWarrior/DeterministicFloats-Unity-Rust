@@ -21,6 +21,9 @@ public class DeterminismTest : MonoBehaviour
     [SerializeField]
     Text output;
 
+    [SerializeField]
+    long logOutputLimit = 100;
+
     private enum Operator { Add = 0, Sub = 1, Mul = 2, Div = 3 }
 
     private const string floatInputsFilename = "floatInputs.txt";
@@ -93,6 +96,9 @@ public class DeterminismTest : MonoBehaviour
     {
         log = new StringBuilder();
 
+        Log("Loading test inputs...");
+        output.text = log.ToString();
+
         var stopwatch = new System.Diagnostics.Stopwatch();
         stopwatch.Start();
 
@@ -101,6 +107,7 @@ public class DeterminismTest : MonoBehaviour
         stopwatch.Stop();
 
         Log($"Loading inputs/truths duration: {stopwatch.Elapsed.Milliseconds}ms");
+        output.text = log.ToString();
 
         Execute(false);
     }
@@ -216,6 +223,9 @@ public class DeterminismTest : MonoBehaviour
             dfloatResultsReader.Dispose();
         }
 
+        if (floatErrors + dfloatErrors > logOutputLimit)
+            LogError("(Reached maximum amount of displayable errors.)");
+
         Log($"Tested {tests} operations.");
 
         if (!write)
@@ -272,14 +282,18 @@ public class DeterminismTest : MonoBehaviour
 
             if (!floatPass)
             {
-                LogError($"{messagePrefix} {op} for float: {GetResultString(a, b, FloatToBits(floatResult), floatTruth)}");
                 floatErrors++;
+
+                if (floatErrors + dfloatErrors < logOutputLimit)
+                    LogError($"{messagePrefix} {op} for float: {GetResultString(a, b, FloatToBits(floatResult), floatTruth)}");
             }
 
             if (!dfloatPass)
             {
-                LogError($"{messagePrefix} {op} for dfloat: {GetResultString(a, b, dfloatResult.Bits, dfloatTruth)}");
                 dfloatErrors++;
+
+                if (floatErrors + dfloatErrors < logOutputLimit)
+                    LogError($"{messagePrefix} {op} for dfloat: {GetResultString(a, b, dfloatResult.Bits, dfloatTruth)}");
             }
         }
 
