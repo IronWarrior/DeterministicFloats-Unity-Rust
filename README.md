@@ -26,6 +26,7 @@ _Where `Float errors` refers to arithmetic run in the managed C# environment, an
 * [ARMv7 apparently handles denormal numbers differently from ARMv8](https://stackoverflow.com/a/53993942), so should not be a surprise if it desyncs there. 
 * Not sure if the .NET runtime itself makes any guarantee of cross platform float determinism, or has any settings for that.
 * Calls to native binaries in C# [have a lot of overhead](https://docs.microsoft.com/en-us/cpp/dotnet/calling-native-functions-from-managed-code?redirectedfrom=MSDN&view=msvc-170#performance-considerations), so using it to solve determinism is not really practical where performance is critical, and is used here mainly for comparison.
+* Casting to and from `ints` is not testing. This operation is probably required to be deterministic for most applications and should be explored.
 
 ## Running the tests
 
