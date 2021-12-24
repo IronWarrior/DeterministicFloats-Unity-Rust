@@ -10,9 +10,6 @@ using UnityEngine.UI;
 public class DeterminismTest : MonoBehaviour
 {
     [SerializeField]
-    bool generate;
-
-    [SerializeField]
     int count = 100;
 
     [SerializeField]
@@ -77,25 +74,41 @@ public class DeterminismTest : MonoBehaviour
             LogError(message);
     }
 
-    private void OnValidate()
-    {
-        if (generate)
-        {
-            Generate();
-
-            floatBitsInputReader = new StreamReader(Path.Combine(Application.streamingAssetsPath, floatInputsFilename));
-
-            Execute(true);
-
-            generate = false;
-        }
-    }
-
-    // Cannot load files in StreamingAssets directly on Android, so WebRequest is used.
-    private IEnumerator Start()
+    public void GenerateGroundTruth()
     {
         log = new StringBuilder();
 
+        string floatInputsPath = Path.Combine(Application.streamingAssetsPath, floatInputsFilename);
+        var floatInputs = new StreamWriter(floatInputsPath);
+
+        var rand = new System.Random();
+
+        for (int i = 0; i < count; i++)
+        {
+            uint value = (uint)rand.Next(-int.MaxValue, int.MaxValue);
+
+            floatInputs.WriteLine(value);
+        }
+
+        floatInputs.Dispose();
+
+        Log($"Generated {count} random floats to file { floatInputsPath } ");
+
+        floatBitsInputReader = new StreamReader(floatInputsPath);
+
+        Execute(true);
+    }
+
+    public void RunTest()
+    {
+        log = new StringBuilder();
+
+        StartCoroutine(RunTestRoutine());
+    }
+
+    // Cannot load files in StreamingAssets directly on Android, so WebRequest is used.
+    private IEnumerator RunTestRoutine()
+    {       
         Log("Loading test inputs...");
         output.text = log.ToString();
 
@@ -127,20 +140,6 @@ public class DeterminismTest : MonoBehaviour
         dfloatResultsReader = new StreamReader(new MemoryStream(dfloatReq.downloadHandler.data));
     }
 
-    private void Generate()
-    {
-        using var floatInputs = new StreamWriter(Path.Combine("Assets/StreamingAssets", floatInputsFilename));
-
-        var rand = new System.Random();
-
-        for (int i = 0; i < count; i++)
-        {
-            uint value = (uint)rand.Next(-int.MaxValue, int.MaxValue);
-
-            floatInputs.WriteLine(value);
-        }
-    }
-
     private void Execute(bool write)
     {
         var stopwatch = new System.Diagnostics.Stopwatch();
@@ -154,8 +153,8 @@ public class DeterminismTest : MonoBehaviour
 
         if (write)
         {
-            floatResultsWriter = new StreamWriter(Path.Combine("Assets/StreamingAssets", floatResultsFilename));
-            dfloatResultsWriter = new StreamWriter(Path.Combine("Assets/StreamingAssets", dfloatResultsFilename));
+            floatResultsWriter = new StreamWriter(Path.Combine(Application.streamingAssetsPath, floatResultsFilename));
+            dfloatResultsWriter = new StreamWriter(Path.Combine(Application.streamingAssetsPath, dfloatResultsFilename));
         }
 
         stopwatch.Start();
@@ -216,6 +215,9 @@ public class DeterminismTest : MonoBehaviour
         {
             floatResultsWriter.Close();
             dfloatResultsWriter.Close();
+
+            Log($"Wrote {tests} C# results to {Path.Combine(Application.streamingAssetsPath, floatResultsFilename)}");
+            Log($"Wrote {tests} native Rust results to {Path.Combine(Application.streamingAssetsPath, dfloatResultsFilename)}");
         }
         else
         {
@@ -224,12 +226,12 @@ public class DeterminismTest : MonoBehaviour
         }
 
         if (floatErrors + dfloatErrors > logOutputLimit)
-            LogError("(Reached maximum amount of displayable errors.)");
-
-        Log($"Tested {tests} operations.");
+            LogError("(Reached maximum amount of displayable errors.)");        
 
         if (!write)
         {
+            Log($"Tested {tests} operations.");
+
             string floatMessage = $"{floatErrors} errors with C# float operations.";
 
             if (floatErrors > 0)
