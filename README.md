@@ -30,9 +30,9 @@ _Where `Float errors` refers to arithmetic run in the managed C# environment, an
 ## Running the tests
 
 * Open the Unity project. _(It contains pre-built binaries for Windows and Android. If you want to test on other platforms, build the binary for it per the steps below._)
-* In the `Main` scene on the `Test` game object's `DeterminismTest` component, click `Generate`. This will write a file containing randomly generated floats to use for tests, as well as the results of the tests using arithmetic in the managed environment and using the native binary.
-* Press play to validate the test is functioning correctly. It will display any arithmetic results that did not match the ground truth (up to `DeterminismTest.LogOutputLimit`) as well as a summary of all the results.
+* Open the `Main` scene and press play to validate the test is functioning correctly. It will display any arithmetic results that did not match the ground truth (up to `DeterminismTest.LogOutputLimit`) as well as a summary of all the results.
 * Build to your target platform to run the test on it.
+* If you want to re-generate the random numbers used in the test, in the `Main` scene on the `Test` game object's `DeterminismTest` component, click `Generate`. This will write a file containing randomly generated floats to use for tests, as well as the results of the tests using arithmetic in the managed environment and using the native binary.
 
 ## Building the native Rust binaries
 
