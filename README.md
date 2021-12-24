@@ -12,7 +12,7 @@ The author of this repo is not an expert in floating point arithmetic determinis
 
 | Platform      | Device                        | Backend      | Float errors  | Dfloat errors | Notes         |
 | ------------- | ------------------------------|--------------|---------------|---------------|---------------|                                                
-| Windows 10    | Intel(R) Core(TM) i7-10700K   | Editor/IL2CPP| 0           | 0           | Used as ground truth              |
+| Windows 10    | Intel(R) Core(TM) i7-10700K   | Editor/IL2CPP| 0           | 0           | IL2CPP used as ground truth              |
 | Android  | Samsung Galaxy S6                  | IL2CPP       | 0             | 0             |               |
 
 _Where `Float errors` refers to arithmetic run in the managed C# environment, and `Dfloat errors` in the calls to the native binary._
@@ -29,10 +29,12 @@ _Where `Float errors` refers to arithmetic run in the managed C# environment, an
 
 ## Running the tests
 
-* Open the Unity project. _(It contains pre-built binaries for Windows and Android. If you want to test on other platforms, build the binary for it per the steps below._)
-* Open the `Main` scene and press play to validate the test is functioning correctly. It will display any arithmetic results that did not match the ground truth (up to `DeterminismTest.LogOutputLimit`) as well as a summary of all the results.
+You can run the tests by loading the pre-built Windows or Android builds on your devices. If you want to test on other platforms, build the binary for it per the steps in the _Native Rust Binaries_ section. To make your own Unity builds, do the following:
+
+* Open the Unity project. _(It contains pre-built binaries for Windows and Android, as well as the files used as ground truth. If you want to test on other platforms, build the binary for it per the steps below._)
+* Open the `Main` scene and press play and `Run test` to validate the test is functioning correctly. It will display any arithmetic results that did not match the ground truth (up to `DeterminismTest.LogOutputLimit`) as well as a summary of all the results.
 * Build to your target platform to run the test on it.
-* If you want to re-generate the random numbers used in the test, in the `Main` scene on the `Test` game object's `DeterminismTest` component, click `Generate`. This will write a file containing randomly generated floats to use for tests, as well as the results of the tests using arithmetic in the managed environment and using the native binary.
+* If you want to re-generate the random numbers used in the test, select the `Generate random inputs + ground truth` button. This will write a file containing randomly generated floats to use for tests, as well as the results of the tests using arithmetic in the managed environment and using the native binary.
 
 ## Building the native Rust binaries
 
